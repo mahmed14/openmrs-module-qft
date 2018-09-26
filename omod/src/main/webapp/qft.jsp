@@ -4,6 +4,7 @@
 
 <h2><spring:message code="qft.replace.this.link.name" /></h2>
 
+<h4>   <c:out value="${status}"/></h4>
 <br/>
 <h3>File Upload:</h3>
 Select a file to upload: <br />

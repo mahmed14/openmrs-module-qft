@@ -43,7 +43,6 @@ public class TSVReader {
 	}
 	
 	public static List<Map<String, String>> parseTestFileData(String data) {
-		System.out.println(data);
 		String[] dataArray = data.split(System.lineSeparator());
 		String versionValueString = dataArray[0].substring(8).trim();
 		String operatorValueString = dataArray[1].substring(9).trim();
@@ -61,7 +60,7 @@ public class TSVReader {
 			map.put("version", versionValueString);
 			map.put("operator", operatorValueString);
 			map.put("kitBatchNumber", batchNumberValueString);
-			
+			System.out.println(map);
 			listOfValues.add(map);
 		}
 		

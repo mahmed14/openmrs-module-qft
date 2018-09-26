@@ -31,6 +31,8 @@ import org.openmrs.module.qft.web.util.TSVReader;
 import org.openmrs.module.commonlabtest.LabTest;
 import org.openmrs.module.commonlabtest.LabTestAttribute;
 import org.openmrs.module.commonlabtest.LabTestAttributeType;
+import org.openmrs.module.commonlabtest.LabTestSample;
+import org.openmrs.module.commonlabtest.LabTestSample.LabTestSampleStatus;
 import org.openmrs.module.commonlabtest.LabTestType;
 import org.openmrs.module.commonlabtest.api.CommonLabTestService;
 import org.openmrs.module.commonlabtest.api.impl.CommonLabTestServiceImpl;
@@ -83,7 +85,7 @@ public class QFTFormController {
 	public String onSubmit(HttpSession httpSession, @ModelAttribute("anyRequestObject") Object anyRequestObject,
 	        BindingResult errors, @RequestParam(value = "file") MultipartFile file,ModelMap map) {
 		
-		//CommonLabTestService commonLabTestService =Context.getService(CommonLabTestService.class);
+		String status="File Uploaded Successfully!";
 		List<String> errorsList=new ArrayList<String>();
 		if (errors.hasErrors()) {
 			// return error view
@@ -92,7 +94,6 @@ public class QFTFormController {
 		 try {
 			file.transferTo(convFile);
 			List<Map<String, String>> results = TSVReader.parseTestFile(convFile);
-			System.out.println(results);
 			LabTestType qtLabTestType = commonLabTestService.getLabTestTypeByUuid("4f4c97c8-61c3-4c4e-82bc-ef3e8abe8ffa");
 			List<LabTestAttributeType> attributeTypes = commonLabTestService.getLabTestAttributeTypes(qtLabTestType, false);
 		
@@ -100,7 +101,7 @@ public class QFTFormController {
 			for (Map<String,String> m: results) {
 				List<LabTestAttribute> attributes=new ArrayList<LabTestAttribute>();
 				String patientID=m.get(QFTKeys.SubjectID.toString());
-				System.out.println("Patient ID :::" + patientID);
+			
 				if(patientID==null | patientID.isEmpty()) {
 					System.out.println("Following record is not saved because of patient id being null");
 					System.out.println(m);
@@ -109,17 +110,15 @@ public class QFTFormController {
 				PatientIdentifierType identifierType = Context.getPatientService().getPatientIdentifierTypeByName("External ID");
 				List<PatientIdentifierType> types=new ArrayList<>();
 				types.add(identifierType);
-				System.out.println("Patient Identifer Type :"+ identifierType.getName());
+			
 				
 				List<Patient> patients=Context.getPatientService().getPatients(null, patientID, types, true);
-				System.out.println("Patient Size ::: "+patients.size());
 				if(patients.size()<1 || patients.get(0)==null  ) {
 					System.out.println("Following record is not found with Externali ID ="+patientID);
 					errorsList.add("Following record is not found with Externali ID ="+patientID);
 				
 					continue;
 				}
-				//Context.getPatientService().getPatientIdentifierTypeByName(arg0)tgetPatientsByIdentifier(patientID, false);
 				List<LabTest> labtests = commonLabTestService.getLabTests(patients.get(0), false);
 				
 				System.out.println("labtests"+labtests);
@@ -136,13 +135,26 @@ public class QFTFormController {
 					errorsList.add("No test order found for Patient ID ="+patientID);
 				
 					continue;
+				}else {
+					List<LabTestAttribute> existedAttributes = commonLabTestService.getLabTestAttributes(qfTest.getTestOrderId());
+					if(existedAttributes.size()>0) {
+						System.out.println("Test Results are Already added for patient Id = "+patientID);
+						errorsList.add("Test Results are Already added for patient Id = "+patientID);
+						continue;
+					}
+					List<LabTestSample> samples = commonLabTestService.getLabTestSamples(qfTest, false);
+					for(LabTestSample sample:samples) {
+						sample.setStatus(LabTestSampleStatus.PROCESSED);
+						commonLabTestService.saveLabTestSample(sample);
+					}
+					
+					
 				}
 				for(LabTestAttributeType attributeType:attributeTypes) {
 					LabTestAttribute att=new LabTestAttribute();
 					att.setLabTest(qfTest);
 					att.setAttributeType(attributeType);
 					att.setAttributeTypeId(attributeType);
-					System.out.print(attributeType.getName() +"		");
 					if(attributeType.getName().equals(QFTKeys.RunNumber.toString())) {
 						att.setValueReference(m.get(QFTKeys.RunNumber.toString()));
 					}
@@ -174,33 +186,26 @@ public class QFTFormController {
 						att.setValueReference(m.get(QFTKeys.Result.toString()));
 					}
 					System.out.println(att.toString());
-					//System.out.println(att.);
+					
 					attributes.add(att);
 					
 				}
 				
-			/*	String runNumber=m.get(QFTKeys.RunNumber.toString());
-				String runDate=m.get(QFTKeys.RunDate.toString());
-				String nill=m.get(QFTKeys.NIL.toString());
-				String tb1=m.get(QFTKeys.TB1.toString());
-				String tb2=m.get(QFTKeys.TB2.toString());
-				String mitogen=m.get(QFTKeys.MITOGEN.toString());
-				String tb1Nill=m.get(QFTKeys.TB1Nil.toString());
-				String tb2Nill=m.get(QFTKeys.TB2Nil.toString());
-				String mitogenNill=m.get(QFTKeys.MitogenNil.toString());
-				String result=m.get(QFTKeys.Result.toString());*/
-				System.out.println(attributes);
-				System.out.println(attributes);
+
 				commonLabTestService.saveLabTestAttributes(attributes);
 				
 			}
+			
+			//status="File Uploaded Successfully!";
 		} catch (Exception e) {
 			
 			e.printStackTrace();
+			status="File not Upload failed! \n"+e.getMessage();
 		}
-	
-		
+		 System.out.println("=====================================");
+		 System.out.println("status   :::: "+status  );
 		 map.put("errorsList", errorsList);
+		 map.put("status", status);
 		
 		return SUCCESS_FORM_VIEW;
 	}
