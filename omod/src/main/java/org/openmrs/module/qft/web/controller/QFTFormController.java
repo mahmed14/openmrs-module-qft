@@ -87,13 +87,25 @@ public class QFTFormController {
 		
 		String status="File Uploaded Successfully!";
 		List<String> errorsList=new ArrayList<String>();
+		File convFile =null;
+		List<Map<String, String>> results=null;
 		if (errors.hasErrors()) {
 			// return error view
 		}
-		File convFile = new File( file.getOriginalFilename());
-		 try {
-			file.transferTo(convFile);
-			List<Map<String, String>> results = TSVReader.parseTestFile(convFile);
+		try {
+		 convFile = new File( file.getOriginalFilename());
+		file.transferTo(convFile);
+		results = TSVReader.parseTestFile(convFile);
+		}catch (Exception e) {
+			status="File Upload failed! \n  Error Message="+e.getMessage();
+			e.printStackTrace();
+		} 
+		if(results!=null) {
+			
+		
+		try {
+			
+
 			LabTestType qtLabTestType = commonLabTestService.getLabTestTypeByUuid("4f4c97c8-61c3-4c4e-82bc-ef3e8abe8ffa");
 			List<LabTestAttributeType> attributeTypes = commonLabTestService.getLabTestAttributeTypes(qtLabTestType, false);
 		
@@ -121,7 +133,7 @@ public class QFTFormController {
 				}
 				List<LabTest> labtests = commonLabTestService.getLabTests(patients.get(0), false);
 				
-				System.out.println("labtests"+labtests);
+				
 				LabTest qfTest=null;
 				for(LabTest lt:labtests) {
 					if(lt.getLabTestType().equals(qtLabTestType)) {
@@ -137,7 +149,13 @@ public class QFTFormController {
 					continue;
 				}else {
 					List<LabTestAttribute> existedAttributes = commonLabTestService.getLabTestAttributes(qfTest.getTestOrderId());
-					if(existedAttributes.size()>0) {
+					int unVoidedCount=0;
+					for(LabTestAttribute attribute :existedAttributes) {
+						if(!attribute.getVoided()) {
+							unVoidedCount++;
+						}
+					}
+					if(unVoidedCount>0) {
 						System.out.println("Test Results are Already added for patient Id = "+patientID);
 						errorsList.add("Test Results are Already added for patient Id = "+patientID);
 						continue;
@@ -185,7 +203,10 @@ public class QFTFormController {
 					else if (attributeType.getName().equals(QFTKeys.Result.toString())) {
 						att.setValueReference(m.get(QFTKeys.Result.toString()));
 					}
-					System.out.println(att.toString());
+					else if (attributeType.getName().equals(QFTKeys.ValidTest.toString())) {
+						att.setValueReference(m.get(QFTKeys.ValidTest.toString()));
+					}
+					
 					
 					attributes.add(att);
 					
@@ -200,10 +221,14 @@ public class QFTFormController {
 		} catch (Exception e) {
 			
 			e.printStackTrace();
-			status="File not Upload failed! \n"+e.getMessage();
+			//status="File Upload failed! \n"+e.getMessage();
 		}
-		 System.out.println("=====================================");
-		 System.out.println("status   :::: "+status  );
+		
+		}else {
+			
+			status ="File Parsing Error. Please contact your administration";
+		}
+		
 		 map.put("errorsList", errorsList);
 		 map.put("status", status);
 		

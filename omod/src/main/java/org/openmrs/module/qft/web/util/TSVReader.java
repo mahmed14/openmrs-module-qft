@@ -60,7 +60,7 @@ public class TSVReader {
 			map.put("version", versionValueString);
 			map.put("operator", operatorValueString);
 			map.put("kitBatchNumber", batchNumberValueString);
-			System.out.println(map);
+			
 			listOfValues.add(map);
 		}
 		
